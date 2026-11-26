@@ -5,7 +5,7 @@ import bcrypt
 from jose import jwt, JWTError
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -13,8 +13,8 @@ from app.db.database import get_db
 from app.db.models import User
 
 
-# Extracts the Bearer token from incoming API requests.
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+# Allows Swagger to accept a JWT Bearer token directly.
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def hash_password(password: str) -> str:
@@ -55,7 +55,7 @@ def create_token(user: User) -> str:
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db)
 ) -> User:
     """Validate JWT and retrieve the currently authenticated user."""
@@ -65,6 +65,11 @@ def get_current_user(
         detail="Invalid or expired token",
         headers={"WWW-Authenticate": "Bearer"}
     )
+
+    if credentials is None:
+        raise credentials_exception
+
+    token = credentials.credentials
 
     try:
         payload = jwt.decode(
