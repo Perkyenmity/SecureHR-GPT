@@ -1,5 +1,5 @@
 
-from datetime import datetime
+from datetime import datetime, date
 
 from sqlalchemy import (
     Column,
@@ -8,7 +8,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     DateTime,
-    Text
+    Date
 )
 
 from app.db.database import Base
@@ -18,12 +18,12 @@ class Employee(Base):
     __tablename__ = "employees"
 
     id = Column(Integer, primary_key=True, index=True)
+
     name = Column(String, nullable=False)
-    department = Column(String)
+    email = Column(String, unique=True, index=True, nullable=False)
+
     title = Column(String)
-    salary = Column(Float)
-    leave_balance = Column(Integer)
-    performance_rating = Column(String)
+    department = Column(String)
 
     manager_id = Column(
         Integer,
@@ -31,22 +31,35 @@ class Employee(Base):
         nullable=True
     )
 
+    hire_date = Column(Date)
+
+    salary = Column(Float)
+    leave_balance = Column(Integer)
+
+    # Leave information
+    leave_taken = Column(Integer, default=0)
+    sick_leave_balance = Column(Integer, default=12)
+    sick_leave_taken = Column(Integer, default=0)
+
+    performance_rating = Column(String)
+
 
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-
-    # employee | manager | hr | admin
-    role = Column(String, nullable=False)
 
     employee_id = Column(
         Integer,
         ForeignKey("employees.id"),
         nullable=True
     )
+
+    username = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+
+    # employee | manager | hr | admin
+    role = Column(String, nullable=False)
 
 
 class AuditLog(Base):
@@ -58,7 +71,7 @@ class AuditLog(Base):
     user_id = Column(Integer)
     username = Column(String)
     action = Column(String)
-    query = Column(Text)
+    query = Column(String)
 
     # ALLOWED | BLOCKED
     decision = Column(String)
