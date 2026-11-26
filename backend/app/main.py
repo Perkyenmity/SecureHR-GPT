@@ -1,7 +1,7 @@
 
 from fastapi import FastAPI
 
-from app.api import auth
+from app.api import auth, employees
 
 
 # Create the FastAPI application
@@ -12,8 +12,9 @@ app = FastAPI(
 )
 
 
-# Register authentication endpoints
+# Register API routers
 app.include_router(auth.router)
+app.include_router(employees.router)
 
 
 # Health check endpoint

@@ -1,0 +1,68 @@
+
+roles:
+  employee:
+    self_fields:
+      - id
+      - name
+      - department
+      - title
+      - salary
+      - leave_balance
+      - performance_rating
+      - manager_id
+
+    subordinate_fields: []
+
+  manager:
+    self_fields:
+      - id
+      - name
+      - department
+      - title
+      - salary
+      - leave_balance
+      - performance_rating
+      - manager_id
+
+    subordinate_fields:
+      - id
+      - name
+      - department
+      - title
+      - leave_balance
+      - performance_rating
+      - manager_id
+
+  hr:
+    self_fields:
+      - id
+      - name
+      - department
+      - title
+      - salary
+      - leave_balance
+      - performance_rating
+      - manager_id
+
+    subordinate_fields:
+      - id
+      - name
+      - department
+      - title
+      - salary
+      - leave_balance
+      - performance_rating
+      - manager_id
+
+  admin:
+    self_fields:
+      - id
+      - name
+      - department
+      - title
+      - salary
+      - leave_balance
+      - performance_rating
+      - manager_id
+
+    subordinate_fields: []
