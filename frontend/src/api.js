@@ -1,13 +1,13 @@
-// Thin client for the SecureHR-GPT FastAPI backend.
-// Leave VITE_API_URL blank to use the same origin (Vite proxy / static mount).
 
-const BASE = import.meta.env.VITE_API_URL ?? "";
+// API client for the SecureHR-GPT FastAPI backend.
+
+const BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "");
 const TOKEN_KEY = "securehr.token";
 
-// sessionStorage: survives a refresh, is cleared when the tab closes.
+// Store the JWT for the current browser tab.
 export const tokenStore = {
   get: () => sessionStorage.getItem(TOKEN_KEY),
-  set: (t) => sessionStorage.setItem(TOKEN_KEY, t),
+  set: (token) => sessionStorage.setItem(TOKEN_KEY, token),
   clear: () => sessionStorage.removeItem(TOKEN_KEY),
 };
 
@@ -19,62 +19,96 @@ export class ApiError extends Error {
 }
 
 let onUnauthorized = () => {};
+
 export function setUnauthorizedHandler(fn) {
   onUnauthorized = fn;
 }
 
 function describe(status, data, fallback) {
   if (status === 429) {
-    return "You've reached the limit of 10 questions per minute. Wait a moment, then try again.";
+    return "Too many requests. Please wait a moment and try again.";
   }
+
   const detail = data?.detail ?? data?.error;
+
   if (typeof detail === "string") return detail;
-  if (Array.isArray(detail)) return detail.map((d) => d.msg).join(" ");
+
+  if (Array.isArray(detail)) {
+    return detail.map((item) => item.msg).join(" ");
+  }
+
   return fallback || `Request failed (${status})`;
 }
 
-async function request(path, { method = "GET", json, form, body, auth = true } = {}) {
+async function request(
+  path,
+  { method = "GET", json, form, body, auth = true } = {}
+) {
   const headers = {};
   const token = tokenStore.get();
-  if (auth && token) headers.Authorization = `Bearer ${token}`;
 
-  let payload = body; // FormData for uploads: the browser sets the multipart boundary
-  if (json) {
+  if (auth && token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  let payload = body;
+
+  if (json !== undefined) {
     headers["Content-Type"] = "application/json";
     payload = JSON.stringify(json);
   }
-  if (form) payload = new URLSearchParams(form); // OAuth2 login expects form encoding
 
-  let res;
+  if (form) {
+    payload = new URLSearchParams(form);
+  }
+
+  let response;
+
   try {
-    res = await fetch(BASE + path, { method, headers, body: payload });
+    response = await fetch(BASE + path, {
+      method,
+      headers,
+      body: payload,
+    });
   } catch {
-    throw new ApiError(0, "Can't reach the server. Check that the API is running on port 8000.");
+    throw new ApiError(
+      0,
+      "Cannot reach the server. Check that the backend is running and the API URL is configured correctly."
+    );
   }
 
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    if (res.status === 401 && auth) onUnauthorized();
-    throw new ApiError(res.status, describe(res.status, data, res.statusText));
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    if (response.status === 401 && auth) {
+      onUnauthorized();
+    }
+
+    throw new ApiError(
+      response.status,
+      describe(response.status, data, response.statusText)
+    );
   }
+
   return data;
 }
 
+// Available backend API operations.
 export const api = {
   login: (username, password) =>
-    request("/auth/login", { method: "POST", form: { username, password }, auth: false }),
+    request("/auth/login", {
+      method: "POST",
+      form: { username, password },
+      auth: false,
+    }),
+
   me: () => request("/auth/me"),
+
   employee: (id) => request(`/employees/${id}`),
-chat: (message) => request("/chat", { method: "POST", json: { message } }),
-  uploadDocument: (file, accessLevel) => {
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("access_level", accessLevel);
-    return request("/documents/upload", { method: "POST", body: fd });
-  },
-  auditLogs: ({ decision = "", limit = 100 } = {}) => {
-    const params = new URLSearchParams({ limit });
-    if (decision) params.set("decision", decision);
-    return request(`/admin/audit-logs?${params}`);
-  },
+
+  chat: (message) =>
+    request("/chat", {
+      method: "POST",
+      json: { message },
+    }),
 };
