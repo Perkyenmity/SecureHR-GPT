@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useState } from "react";
 import { api, setUnauthorizedHandler, tokenStore } from "./api";
 import { VIEWS_BY_ROLE } from "./roles";
@@ -6,14 +7,13 @@ import { useChat } from "./useChat";
 import Login from "./Login";
 import Sidebar from "./Sidebar";
 import Chat from "./Chat";
-import Documents from "./Documents";
-import AuditLog from "./AuditLog";
 
 export default function App() {
-  const [session, setSession] = useState(null); // { user, profile }
+  const [session, setSession] = useState(null);
   const [booting, setBooting] = useState(() => Boolean(tokenStore.get()));
   const [view, setView] = useState("chat");
   const [notice, setNotice] = useState("");
+
   const chat = useChat();
   const resetChat = chat.reset;
 
@@ -30,42 +30,60 @@ export default function App() {
 
   const loadSession = useCallback(async () => {
     const user = await api.me();
+
     let profile = null;
+
     try {
-      profile = await api.employee(user.employee_id); // everyone may read their own record
+      profile = await api.employee(user.employee_id);
     } catch {
-      /* the name is cosmetic; fall back to the username */
+      // The username can be used if the employee profile is unavailable.
     }
+
     setSession({ user, profile });
   }, []);
 
-  // Any 401 from the API sends the person back to the login screen.
+  // Automatically sign out when the backend rejects the JWT.
   useEffect(() => {
-    setUnauthorizedHandler(() => signOut("Your session expired. Sign in again."));
+    setUnauthorizedHandler(() => {
+      signOut("Your session expired. Sign in again.");
+    });
+
+    return () => setUnauthorizedHandler(() => {});
   }, [signOut]);
 
-  // Restore a session after a page refresh.
+  // Restore an existing session after refreshing the page.
   useEffect(() => {
-    if (!tokenStore.get()) return;
+    if (!tokenStore.get()) {
+      setBooting(false);
+      return;
+    }
+
     loadSession()
-      .catch(() => tokenStore.clear())
+      .catch(() => {
+        tokenStore.clear();
+        setSession(null);
+      })
       .finally(() => setBooting(false));
   }, [loadSession]);
 
-  // Also used by "Switch user": a failed login leaves the current session untouched.
+  // Login and account switching.
   const signIn = useCallback(
     async (username, password) => {
+
       const { access_token } = await api.login(username, password);
+
       tokenStore.set(access_token);
+
       try {
         await loadSession();
-      } catch (e) {
+        resetChat();
+        setView("chat");
+        setNotice("");
+      } catch (error) {
         tokenStore.clear();
-        throw e;
+        setSession(null);
+        throw error;
       }
-      resetChat();
-      setView("chat");
-      setNotice("");
     },
     [loadSession, resetChat]
   );
@@ -77,7 +95,10 @@ export default function App() {
       </div>
     );
   }
-  if (!session) return <Login onSignIn={signIn} notice={notice} />;
+
+  if (!session) {
+    return <Login onSignIn={signIn} notice={notice} />;
+  }
 
   const views = VIEWS_BY_ROLE[session.user.role] ?? ["chat"];
   const active = views.includes(view) ? view : "chat";
@@ -92,10 +113,11 @@ export default function App() {
         onSignOut={() => signOut()}
         onSwitch={signIn}
       />
+
       <main className="stage">
-        {active === "chat" && <Chat session={session} chat={chat} />}
-        {active === "documents" && <Documents />}
-        {active === "audit" && <AuditLog />}
+        {active === "chat" && (
+          <Chat session={session} chat={chat} />
+        )}
       </main>
     </div>
   );

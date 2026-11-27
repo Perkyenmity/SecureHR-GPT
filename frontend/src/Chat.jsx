@@ -103,14 +103,16 @@ function Thinking() {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    if (index >= STAGES.length - 1) return;
+
+    const timer = setTimeout(() => {
       setIndex((current) =>
         Math.min(current + 1, STAGES.length - 1)
       );
     }, 1100);
 
-    return () => clearInterval(timer);
-  }, []);
+    return () => clearTimeout(timer);
+  }, [index]);
 
   return (
     <div className="thinking" role="status">
