@@ -36,3 +36,11 @@ chroma_db/
 # OS
 .DS_Store
 Thumbs.db
+
+# Frontend dependencies and build output
+node_modules/
+dist/
+
+# Build and temporary files
+*.tmp
+*.bak
